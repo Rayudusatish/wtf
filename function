@@ -1,0 +1,165 @@
+import json
+
+import urllib3
+
+import datetime
+
+from urllib3.exceptions import MaxRetryError
+
+from jira import JIRA
+
+from flask import Flask, request, jsonify
+
+
+
+
+app = Flask(__name__)
+
+
+
+
+@app.route('/wipchatbot', methods=['POST'])
+
+def index():
+
+
+
+
+    event = request.get_json()
+
+    print("Received event: " + json.dumps(event, indent=2))
+
+    #print(req)
+
+    #body = json.loads(event["body"])
+
+    body = event["body"]
+
+    intentname = body["queryResult"]["intent"]["displayName"]
+
+    print(intentname)
+
+    if intentname == "jira_status":
+
+        ticket_no = body["queryResult"]["parameters"]["ticket_no"].upper()
+
+        passkey='ATATT3xFfGF0GmtW18reeMttxJivBcreI9zQReykbvlTIuX1WVn78prH4Qt3BsJs2h6Qr2K78LWoYhWSDf-qzcjEdPmhrNJ6A0-fY17xABJ4XjgKkmZbXshJCBkGOO1JdNURzUkFrJBIeuywkfjeyUc4Y4OlBF_k66otZjzOiZiAfo5kTM3yI38=5D626666'
+
+        jiraOptions = {'server': "https://wipchatbot.atlassian.net"}
+
+        jira = JIRA(options=jiraOptions, basic_auth=("wipchatbot2022@gmail.com", passkey))
+
+        #jira.search_issues(jql_str='project = wipchatbot')
+
+        status = jira.issue(ticket_no).get_field("status").name
+
+        res = {"fulfillmentMessages":[{"text":{"text":["Status of `" + ticket_no + "` is `" + status + "` and summary is `" + jira.issue(ticket_no).get_field("summary") + "`\nYou can check further by visiting "+ "<" + jira.issue(ticket_no).permalink() + "|JIRA>"]}}]}
+
+    elif intentname == "production_release" :
+
+        http = urllib3.PoolManager(cert_reqs='CERT_NONE',assert_hostname=False)
+
+        url = 'https://wipchatbot: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@api.github.com/repos/wipchatbot/testing_chat_bot/tags'
+
+        resp = http.request('GET', url)
+
+        jsonreq = json.loads(resp.data.decode("utf-8"))[0]
+
+        print(resp.status)
+
+        if resp.status == 200:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Last production deployment release version was `" + jsonreq["name"] + "` and commit id was `" + jsonreq["commit"]["sha"] + "` \nYou can find more details at <https://www.github.com/wipchatbot/testing_chat_bot|Git URL>"]}}]}
+
+        else:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Jenkins is down, please check Jenkins instance `50.17.118.184`"]}}]}
+
+    elif intentname == "Jenkins_status" :
+
+        http = urllib3.PoolManager()
+
+        url = 'http://50.17.118.184:8080/login'
+
+        try:
+
+            resp = http.request('GET', url)
+
+            if resp.status == 200:
+
+                res = {"fulfillmentMessages":[{"text":{"text":["Jenkins is up and running on <http://50.17.118.184:8080/login|Jenkins Url>"]}}]}
+
+        except ConnectionResetError:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Jenkins is down it failed with ConnectionResetError, please check Jenkins instance `50.17.118.184`"]}}]}
+
+        except MaxRetryError:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Jenkins is down, it failed with MaxRetryError, please check Jenkins instance `50.17.118.184`"]}}]}
+
+        except:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Jenkins is down, it failed with unknown exception, please check Jenkins instance `50.17.118.184`"]}}]}
+
+        # print(resp.status)
+
+    elif intentname == "Jenkins_deployment" :
+
+        http = urllib3.PoolManager()
+
+        job_name = body["queryResult"]["parameters"]["job_name"]
+
+        url = 'http://50.17.118.184:8080/job/' + job_name + '/lastSuccessfulBuild/api/json'
+
+        print(job_name + " " + url)
+
+        resp = http.request('GET', url)
+
+        print(resp.status)
+
+        if resp.status == 200:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Last successful job id for `" + job_name + "` is `" + json.loads(resp.data.decode("utf-8"))["id"] + "` and it was run on `" + str(datetime.datetime.fromtimestamp(json.loads(resp.data.decode("utf-8"))["timestamp"]/1000)) + "`" ]}}]}
+
+        else:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Didn't find any job with that name. Is it correct ?"]}}]}
+
+    elif intentname == "Jenkins_job_run" :
+
+        http = urllib3.PoolManager()
+
+        job_name = body["queryResult"]["parameters"]["job_name"]
+
+        url = 'http://admin:Kpsingh219@@50.17.118.184:8080/job/' + job_name + '/build?token=wipchatbot'
+
+        print(job_name + " " + url)
+
+        resp = http.request('GET', url)
+
+        print(resp.status)
+
+        if resp.status == 201:
+
+            res = {"fulfillmentMessages":[{"text":{"text":[ "`" + job_name + "` job was successfully run. You can check your job here <http://50.17.118.184:8080/job/" + job_name + "|Jenkins Url>" ]}}]}
+
+        else:
+
+            res = {"fulfillmentMessages":[{"text":{"text":["Didn't find any job with that name. Is it correct ?"]}}]}
+
+    else:
+
+        res = {"fulfillmentMessages":[{"text":{"text":["Things doesn't look right from fullfilment side, intent didn't match"]}}]}
+
+    # Returns json
+
+    return res
+
+
+
+
+if __name__ == '__main__':
+
+    from waitress import serve
+
+    serve(app, host="0.0.0.0", port=8080)

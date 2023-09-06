@@ -1,0 +1,143 @@
+steps:
+  - id: Build Docker Images
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker build -t gcr.io/$PROJECT_ID/chatmate:$SHORT_SHA-$BRANCH_NAME .
+
+ 
+
+  - id: Push Docker Images to GCR
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker push gcr.io/$PROJECT_ID/chatmate:$SHORT_SHA-$BRANCH_NAME
+
+    # deploy to GKE
+
+  - id: Deploy chatemate to GKE
+    name: "gcr.io/cloud-builders/gke-deploy"
+    args:
+      - run
+      - --filename=k8s-deployment.yaml
+      - --location=$_CLOUDSDK_COMPUTE_ZONE
+      - --cluster=$_CLOUDSDK_CONTAINER_CLUSTER
+
+#  - id: Retrieve Secret Keys
+#    name: gcr.io/cloud-builders/gcloud
+#    entrypoint: 'bash'
+#    args: [ '-c', "gcloud secrets versions access latest --secret=sonarqube-token --format='get(payload.data)' | tr '_-' '/+' | base64 -d > sonar-token.txt" ]
+
+#   - id: Sonar Analysis
+#     name: 'gcr.io/$PROJECT_ID/sonar-scanner:latest'
+#     env:
+#     - '_SONAR_TOKEN=$(cat sonar-token.txt) && echo -n \)_SONAR_TOKEN'
+#     args:
+#     - '-Dsonar.host.url=http://35.197.204.181:9000/'
+#     - '-Dsonar.login=${_SONAR_TOKEN}'
+#     - '-Dsonar.projectName=Optima-Front-End'
+#     - '-Dsonar.projectKey=Optima-Front-End'
+#     - '-Dsonar.sources=./NewFrontEnd/client'
+
+ 
+
+#  - id: Helm Install GCS Plugin
+#    name: gcr.io/$PROJECT_ID/helm
+#    args: ["plugin", "install", "https://github.com/hayorov/helm-gcs.git"]
+#    env:
+#      - TILLERLESS=true
+#      - CLOUDSDK_COMPUTE_ZONE=$_CLOUDSDK_COMPUTE_ZONE
+#      - CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER
+
+ 
+
+#  - id: Helm Install Chatmate Chart
+#    name: gcr.io/$PROJECT_ID/helm
+#    args: ["upgrade", 
+#           "--install", 
+#           "optima-$_RELEASE_SUFFIX", 
+#           "optima/optima-chart", 
+#           "--set", 
+#           "account.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "auth.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "db.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "expenditure.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "managesi.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "mortgage.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "offering.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "payout.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "poolingFund.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "portingFund.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "twoWayPooling.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "wms.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--set",
+#           "newfrontend.image.tag=$SHORT_SHA-$BRANCH_NAME",
+#           "--namespace", "$_NAME_SPACE"]
+#    env:
+#      - TILLERLESS=true
+#      - CLOUDSDK_COMPUTE_ZONE=$_CLOUDSDK_COMPUTE_ZONE
+#      - CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER
+#      - HELM_REPO_URL=gs://optima-charts
+#      - HELM_REPO_NAME=optima          
+
+ 
+
+  # Here Zalenium implementation will come           
+
+ 
+
+  # - id: Helm Install Optima Chart
+  #   name: gcr.io/$PROJECT_ID/helm
+  #   args: ["upgrade", 
+  #          "--install", 
+  #          "optima", 
+  #          "optima/optima-chart", 
+  #          "--set", 
+  #          "account.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "auth.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "db.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "expenditure.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "managesi.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "mortgage.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "offering.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "payout.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "poolingFund.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "portingFund.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "twoWayPooling.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "wms.image.tag=$SHORT_SHA",
+  #          "--set",
+  #          "newfrontend.image.tag=$SHORT_SHA"]
+  #   env:
+  #     - TILLERLESS=true
+  #     - CLOUDSDK_COMPUTE_ZONE=$_CLOUDSDK_COMPUTE_ZONE
+  #     - CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER
+  #     - HELM_REPO_URL=gs://optima-charts
+  #     - HELM_REPO_NAME=optima
+timeout: 1200s
+
